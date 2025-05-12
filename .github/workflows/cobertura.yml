@@ -1,0 +1,67 @@
+name: Cobertura
+run-name: Test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  cobertura:
+    permissions: write-all
+    runs-on: [self-hosted, cobertura]
+    env:
+      LM_LICENSE_FILE: /vcast/vector-license.lic
+      VECTOR_LICENSE_FILE: /vcast/vector-license.lic
+
+    container:
+      image: rds-vtc-docker-dev-local.vegistry.vg.vector.int/vcast/vscode_ubuntu24_ci:node_18_dynamic_mounting
+      options: --user vcast_user --mount type=bind,source=${{ vars.VCAST_RELEASES_PATH }},target=/vcast
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Check out vc_scripts repository
+        id: checkout-vc_scripts
+        uses: actions/checkout@v4
+        with:
+          repository: TimSVector/vc_scripts_submodule
+          path: vc_scripts
+
+      - name: Environment setup
+        run: |
+          RELEASE_DIR=/vcast/2025sp1
+          if [ ! -d "$RELEASE_DIR" ]; then
+            echo "Error: $RELEASE_DIR does not exist."
+            exit 1
+          fi
+          echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
+          echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
+          echo "VC_SCRIPTS_DIR=$(pwd)/vc_scripts" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Build and run Vcast env
+        shell: bash
+        run: |
+          cd TUTORIAL_C
+          $VECTORCAST_DIR/clicast -lc ENvironment Build TUTORIAL_C.env
+          $VECTORCAST_DIR/clicast -e TUTORIAL_C test script run atg.tst
+          $VECTORCAST_DIR/clicast -e TUTORIAL_C execute batch
+          cd ..
+
+      - name: Run Cobertura script
+        shell: bash
+        run: $VECTORCAST_DIR/vpython $VC_SCRIPTS_DIR/cobertura.py TUTORIAL_C/TUTORIAL_C.vce
+
+      - name: Upload coverage artifacts
+        run: |
+          curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
+          chmod +x codecov
+          ./codecov -f ./xml_data/cobertura/coverage_results_TUTORIAL_C.xml -F Cobertura -n vectorcast-cobertura -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -r ${{ github.repository }} -U ${http_proxy} >> out.txt
+          cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
+          title="Coverage report URL" && \
+          [ -z $(cat url.txt) ] && echo "::notice title=$title::URL not found" || echo "::notice title=$title::$(cat url.txt)"
