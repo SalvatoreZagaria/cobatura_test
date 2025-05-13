@@ -64,3 +64,13 @@ jobs:
           flags: Cobertura
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+
+      - name: Add Codecov link to Summary
+        shell: bash
+        run: |
+          URL="https://app.codecov.io/github/${{ github.repository }}/commit/${{ github.sha }}"
+          {
+            echo "## 📊 Codecov Coverage Report"
+            echo ""
+            echo "- [View the full report]($URL)"
+          } >> $GITHUB_STEP_SUMMARY
