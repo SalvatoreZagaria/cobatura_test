@@ -70,13 +70,11 @@ jobs:
       - name: Fail if coverage dropped
         shell: bash
         run: |
-          sleep 10 
+          sleep 10
           status=$(curl -s \
             -H "Accept: application/vnd.github.v3+json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/commits/${{ github.sha }}/status" \
-            | jq -r '.statuses[] |
-                select(.context=="codecov/project") |
-                .state')
+            | python3 -c "import json,sys; data=json.load(sys.stdin); print(next((s['state'] for s in data.get('statuses', []) if s.get('context') == 'codecov/project'), ''))")
           if [[ "$status" != "success" ]]; then
             echo "::error ::Coverage check failed (state=$status)"
             exit 1
