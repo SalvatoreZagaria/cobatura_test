@@ -57,11 +57,10 @@ jobs:
         shell: bash
         run: $VECTORCAST_DIR/vpython $VC_SCRIPTS_DIR/cobertura.py TUTORIAL_C/TUTORIAL_C.vce
 
-      - name: Upload coverage artifacts
-        run: |
-          curl -Os https://uploader.codecov.io/v0.7.1/linux/codecov
-          chmod +x codecov
-          ./codecov -f ./xml_data/cobertura/coverage_results_TUTORIAL_C.xml -F Cobertura -n vectorcast-cobertura -t ${{ secrets.CODECOV_TOKEN }} -C ${{ github.sha }} -r ${{ github.repository }} -U ${http_proxy} >> out.txt
-          cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
-          title="Coverage report URL" && \
-          [ -z $(cat url.txt) ] && echo "::notice title=$title::URL not found" || echo "::notice title=$title::$(cat url.txt)"
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./xml_data/cobertura/coverage_results_TUTORIAL_C.xml
+          flags: Cobertura
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
