@@ -49,7 +49,7 @@ jobs:
         run: |
           cd TUTORIAL_C
           $VECTORCAST_DIR/clicast -lc ENvironment Build TUTORIAL_C.env
-          $VECTORCAST_DIR/clicast -e TUTORIAL_C test script run atg.tst
+          $VECTORCAST_DIR/clicast -e TUTORIAL_C test script run TUTORIAL_C.tst
           $VECTORCAST_DIR/clicast -e TUTORIAL_C execute batch
           cd ..
 
