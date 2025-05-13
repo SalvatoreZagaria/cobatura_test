@@ -12,6 +12,7 @@ jobs:
   cobertura:
     permissions: write-all
     runs-on: [self-hosted, cobertura]
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     env:
       LM_LICENSE_FILE: /vcast/vector-license.lic
       VECTOR_LICENSE_FILE: /vcast/vector-license.lic
@@ -65,3 +66,19 @@ jobs:
           cat out.txt | tail -n 1 | awk -F "'info'] " '{print $2}' | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("resultURL", ""))' > url.txt
           title="Coverage report URL" && \
           [ -z $(cat url.txt) ] && echo "::notice title=$title::URL not found" || echo "::notice title=$title::$(cat url.txt)"
+
+      - name: Fail if coverage dropped
+        shell: bash
+        run: |
+          sleep 10 
+          status=$(curl -s \
+            -H "Accept: application/vnd.github.v3+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/commits/${{ github.sha }}/status" \
+            | jq -r '.statuses[] |
+                select(.context=="codecov/project") |
+                .state')
+          if [[ "$status" != "success" ]]; then
+            echo "::error ::Coverage check failed (state=$status)"
+            exit 1
+          fi
+          echo "Coverage check passed (state=$status)"
